@@ -97,6 +97,35 @@ export default function Home() {
        return;
     }
 
+    // MOBILE / DESKTOP TAP EXTENSION: If same room, extend the range!
+    if (selectedRange && selectedRange.roomId === roomId) {
+        // Toggle off if clicking the exact same single slot
+        if (selectedRange.startIndex === index && selectedRange.endIndex === index) {
+             setSelectedRange(null);
+             setIsSelecting(false);
+             setDragStart(null);
+             return;
+        }
+
+        const minIndex = Math.min(selectedRange.startIndex, index);
+        const maxIndex = Math.max(selectedRange.endIndex, index);
+
+        let valid = true;
+        for (let i = minIndex; i <= maxIndex; i++) {
+           if (getSlotBooking(roomId, SLOTS[i].hour, SLOTS[i].minute) || isSlotLocked(SLOTS[i].hour, SLOTS[i].minute)) {
+             valid = false;
+             break;
+           }
+        }
+        
+        if (valid) {
+            setSelectedRange({ roomId, startIndex: minIndex, endIndex: maxIndex });
+            setIsSelecting(true);
+            setDragStart({ roomId, index: selectedRange.startIndex });
+            return;
+        }
+    }
+
     setIsSelecting(true);
     setDragStart({ roomId, index });
     setSelectedRange({ roomId, startIndex: index, endIndex: index });
@@ -115,6 +144,18 @@ export default function Home() {
     }
 
     setSelectedRange({ roomId, startIndex: minIndex, endIndex: maxIndex });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSelecting) return;
+    const touch = e.touches[0];
+    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!element) return;
+    const roomId = element.getAttribute("data-room-id");
+    const indexStr = element.getAttribute("data-index");
+    if (roomId && indexStr) {
+      handleMouseEnter(roomId, parseInt(indexStr, 10));
+    }
   };
 
   const handleMouseUp = () => {
@@ -265,7 +306,7 @@ export default function Home() {
           </div>
 
           {/* Matrix Body */}
-          <div className="min-w-max pb-32">
+          <div className="min-w-max pb-32" onTouchMove={handleTouchMove} onTouchEnd={handleMouseUp}>
             {rooms.map((room) => (
               <div key={room.id} className="flex border-b border-gray-200 bg-white">
                 <div className="w-24 flex-shrink-0 sticky left-0 z-20 bg-[#f0fdf4] border-r border-gray-200 flex flex-col justify-center px-2 py-4 shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
@@ -293,8 +334,11 @@ export default function Home() {
                     const slotContent = (
                       <div
                         key={index}
+                        data-room-id={room.id}
+                        data-index={index}
                         onMouseDown={() => handleMouseDown(room.id, index)}
                         onMouseEnter={() => handleMouseEnter(room.id, index)}
+                        onTouchStart={() => handleMouseDown(room.id, index)}
                         className={cn(
                           "h-14 w-16 flex-shrink-0 border-y border-r first:border-l border-gray-200/70 transition-all box-border relative flex items-center overflow-visible",
                           isBooked ? "bg-[#f87171] border-red-400 cursor-help" :
