@@ -1,37 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KakaBooking - Hệ Thống Đặt Phòng Họp Nội Bộ
 
-## Getting Started
+Hệ thống đặt phòng họp nội bộ cho teams. Cho phép người dùng xem lịch phòng họp theo tuần, đặt phòng bằng cách kéo chọn khung giờ, và quản lý các đặt phòng của mình.
 
-First, run the development server:
+## Tính Năng Chính
+
+- **Lịch Phòng Tuần Tương Tác**: Lưới thời gian 7:00-19:00 (slot 30 phút) hiển thị tất cả phòng họp. Người dùng kéo hoặc chạm để chọn khung giờ trống.
+- **Trạng Thái Phòng Trực Quan**: Phòng đã đặt (đỏ), phòng đã khóa/quá khứ (xám), phòng trống (trắng). Tên người đặt hiển thị trên slot.
+- **Tạo Đặt Phòng**: Nhập tiêu đề, tên người đặt, số người tham gia. Hệ thống kiểm tra sức chứa phòng.
+- **Quản Lý Đặt Phòng**: Xem chi tiết qua tooltip, xóa đặt phòng của mình (có xác minh tên để bảo mật).
+- **Cập Nhật Thời Gian Thực**: Dùng Supabase Realtime để cập nhật lưới khi có đặt phòng mới, sửa, hoặc xóa.
+- **Chống Đặt Trùng**: Kiểm tra không cho đặt trùng cùng phòng và khung giờ.
+- **Chuyển Ngày**: Chọn ngày bất kỳ qua calendar popover.
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS v4, shadcn/ui
+- **Backend**: Supabase (PostgreSQL + Realtime)
+- **Icons**: Lucide React
+- **Date**: date-fns, react-day-picker
+
+## Cài Đặt
 
 ```bash
+# Clone repository
+git clone <repo-url>
+cd BookingKaka
+
+# Install dependencies
+npm install
+
+# Copy environment file
+cp .env.local.example .env.local
+
+# Add Supabase credentials to .env.local
+# NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mở [http://localhost:3000](http://localhost:3000) để xem ứng dụng.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Database Schema
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### rooms
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| name | text | Tên phòng |
+| capacity | integer | Sức chứa |
+| description | text | Mô tả |
 
-## Learn More
+### bookings
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| room_id | uuid | Foreign key → rooms |
+| title | text | Tiêu đề cuộc họp |
+| start_time | timestamp | Giờ bắt đầu |
+| end_time | timestamp | Giờ kết thúc |
+| booker_name | text | Tên người đặt |
+| participants_count | integer | Số người tham gia |
+| created_at | timestamp | Thời điểm tạo |
 
-To learn more about Next.js, take a look at the following resources:
+## Cấu Trúc Thư Mực
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+/app
+  page.tsx          # Trang chính (client component)
+  layout.tsx        # Root layout
+  globals.css       # Global styles
+/components/ui      # shadcn/ui components
+/hooks
+  useBookings.ts    # Booking CRUD + realtime
+/lib
+  supabase.ts       # Supabase client
+  types.ts          # TypeScript interfaces
+  utils.ts          # Utility functions
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# KakaBooking
+Được thiết kế để deploy trên Vercel. Kết nối Supabase project và thêm environment variables trong Vercel dashboard.
