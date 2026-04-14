@@ -67,6 +67,7 @@ function getOrCreateChannel(
         table: "bookings",
       },
       (payload) => {
+        console.log("Realtime DELETE event:", payload);
         onDelete(payload.old.id);
       }
     );
@@ -178,6 +179,7 @@ export function useBookings() {
 
   // Delete a booking
   const deleteBooking = useCallback(async (id: string): Promise<boolean> => {
+    console.log("Attempting to delete booking:", id);
     const { error } = await supabase.from("bookings").delete().eq("id", id);
 
     if (error) {
@@ -185,6 +187,7 @@ export function useBookings() {
       return false;
     }
 
+    console.log("Delete succeeded for:", id);
     return true;
   }, []);
 

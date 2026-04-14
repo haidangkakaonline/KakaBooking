@@ -179,6 +179,9 @@ export default function Home() {
   const displayHours = Math.floor(selectedHours);
   const displayMins = (selectedHours % 1) * 60;
   const timeString = `${displayHours} giờ ${displayMins === 0 ? "00" : displayMins} phút`;
+  const timeRangeString = selectedRange
+    ? `${SLOTS[selectedRange.startIndex].hour}:${SLOTS[selectedRange.startIndex].minute.toString().padStart(2, "0")} - ${SLOTS[selectedRange.endIndex].hour}:${(SLOTS[selectedRange.endIndex].minute + 30).toString().padStart(2, "0")}`
+    : "";
 
   const handleNext = () => {
     if (!selectedRange) {
@@ -426,7 +429,7 @@ export default function Home() {
           <div className="bg-[#f8fafc] border-t border-gray-200 px-6 py-4 flex items-center justify-between">
             <span className="font-bold text-sm text-green-900">
               {selectedRange
-                ? `Tổng thời gian dự kiến: ${timeString}`
+                ? `Tổng thời gian dự kiến: ${timeString} (${timeRangeString})`
                 : "Vui lòng chọn khung giờ trên lịch"}
             </span>
             <Button
@@ -440,7 +443,7 @@ export default function Home() {
         </div>
 
         {/* Information Modal */}
-        <Dialog open={infoModalOpen} onOpenChange={setInfoModalOpen}>
+        <Dialog open={infoModalOpen} onOpenChange={(open) => { setInfoModalOpen(open); if (!open) setSelectedBookingInfo(null); }}>
           <DialogContent className="sm:max-w-[400px] rounded-xl border-t-4 border-t-red-500">
             <DialogHeader>
               <DialogTitle className="text-lg flex items-center gap-2 text-slate-800">
