@@ -146,10 +146,9 @@ export default function Home() {
     setSelectedRange({ roomId, startIndex: minIndex, endIndex: maxIndex });
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = (e: React.PointerEvent) => {
     if (!isSelecting) return;
-    const touch = e.touches[0];
-    const element = document.elementFromPoint(touch.clientX, touch.clientY);
+    const element = document.elementFromPoint(e.clientX, e.clientY);
     if (!element) return;
     const roomId = element.getAttribute("data-room-id");
     const indexStr = element.getAttribute("data-index");
@@ -166,7 +165,11 @@ export default function Home() {
   useEffect(() => {
     if (isSelecting) {
       window.addEventListener("mouseup", handleMouseUp);
-      return () => window.removeEventListener("mouseup", handleMouseUp);
+      window.addEventListener("pointerup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mouseup", handleMouseUp);
+        window.removeEventListener("pointerup", handleMouseUp);
+      };
     }
   }, [isSelecting]);
 
@@ -348,7 +351,7 @@ export default function Home() {
           </div>
 
           {/* Matrix Body */}
-          <div className="min-w-max pb-32" onTouchMove={handleTouchMove} onTouchEnd={handleMouseUp}>
+          <div className="min-w-max pb-32 touch-none" onPointerMove={handleTouchMove} onPointerUp={handleMouseUp}>
             {rooms.map((room) => (
               <div key={room.id} className="flex border-b border-gray-200 bg-white">
                 <div className="w-24 flex-shrink-0 sticky left-0 z-20 bg-[#f0fdf4] border-r border-gray-200 flex flex-col justify-center px-2 py-4 shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
@@ -378,9 +381,8 @@ export default function Home() {
                         key={index}
                         data-room-id={room.id}
                         data-index={index}
-                        onMouseDown={() => handleMouseDown(room.id, index)}
-                        onMouseEnter={() => handleMouseEnter(room.id, index)}
-                        onTouchStart={() => handleMouseDown(room.id, index)}
+                        onPointerDown={() => handleMouseDown(room.id, index)}
+                        onPointerEnter={() => handleMouseEnter(room.id, index)}
                         className={cn(
                           "h-14 w-16 flex-shrink-0 border-y border-r first:border-l border-gray-200/70 transition-all box-border relative flex items-center overflow-visible",
                           isBooked ? "bg-[#f87171] border-red-400 cursor-help" :
