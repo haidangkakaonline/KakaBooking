@@ -220,14 +220,14 @@ export function useBookings() {
     if (isInitialized.current) return;
     isInitialized.current = true;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBookings();
     getOrCreateChannel(handleInsert, handleUpdate, handleDelete);
 
     return () => {
       removeChannel();
     };
-  }, [fetchBookings, handleInsert, handleUpdate, handleDelete]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return {
     bookings,

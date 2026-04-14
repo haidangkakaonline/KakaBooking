@@ -276,8 +276,7 @@ export default function Home() {
   };
 
   return (
-    <TooltipProvider delay={150}>
-      <div className="flex flex-col h-screen overflow-hidden bg-white text-foreground font-sans">
+    <div className="flex flex-col h-screen overflow-hidden bg-white text-foreground font-sans">
         {/* Header Part 1: Deep Corporate Green */}
         <div className="bg-[#0f6c38] text-white flex-shrink-0 z-20">
           <div className="flex items-center justify-between px-4 py-3">
@@ -387,8 +386,8 @@ export default function Home() {
                                 "bg-white hover:bg-green-50 cursor-pointer"
                         )}
                         style={{
-                          ...(isSelected && index > selectedRange!.startIndex ? { borderLeftWidth: 0, marginLeft: -1 } : {}),
-                          ...(isSelected && index < selectedRange!.endIndex ? { borderRightWidth: 0, marginRight: -1 } : {})
+                          ...(isSelected && selectedRange && index > selectedRange.startIndex ? { borderLeftWidth: 0, marginLeft: -1 } : {}),
+                          ...(isSelected && selectedRange && index < selectedRange.endIndex ? { borderRightWidth: 0, marginRight: -1 } : {})
                         }}
                       >
                         {isFirstVisibleSlotOfBooking && (
@@ -498,6 +497,5 @@ export default function Home() {
           </DialogContent>
         </Dialog>
       </div>
-    </TooltipProvider>
   );
 }
