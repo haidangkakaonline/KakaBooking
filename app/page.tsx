@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { format, parseISO, setHours, setMinutes, isBefore } from "date-fns";
-import { Calendar as CalendarIcon, ChevronLeft, AlertCircle } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, AlertCircle, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Calendar } from "@/components/ui/calendar";
@@ -28,9 +28,9 @@ for (let h = START_HOUR; h < END_HOUR; h++) {
 export default function Home() {
   // 1. Data States
   const [date, setDate] = useState<Date>(new Date());
-  const { bookings, refetch, createBooking } = useBookings();
+  const { bookings, refetch, createBooking, deleteBooking } = useBookings();
   const [rooms, setRooms] = useState<Room[]>([]);
-  
+
   // 2. Selection States
   const [isSelecting, setIsSelecting] = useState(false);
   const [dragStart, setDragStart] = useState<{ roomId: string; index: number } | null>(null);
@@ -40,7 +40,7 @@ export default function Home() {
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [selectedBookingInfo, setSelectedBookingInfo] = useState<BookingWithRoom | null>(null);
-  
+
   // 4. Form States
   const [bookerName, setBookerName] = useState("");
   const [bookingTitle, setBookingTitle] = useState("");
@@ -86,44 +86,44 @@ export default function Home() {
   const handleMouseDown = (roomId: string, index: number) => {
     const slot = SLOTS[index];
     const booking = getSlotBooking(roomId, slot.hour, slot.minute);
-    
+
     if (booking) {
       setSelectedBookingInfo(booking);
       setInfoModalOpen(true);
       return;
     }
     if (isSlotLocked(slot.hour, slot.minute)) {
-       toast.info("Khung giờ này đã qua, không thể thao tác.");
-       return;
+      toast.info("Khung giờ này đã qua, không thể thao tác.");
+      return;
     }
 
     // MOBILE / DESKTOP TAP EXTENSION: If same room, extend the range!
     if (selectedRange && selectedRange.roomId === roomId) {
-        // Toggle off if clicking the exact same single slot
-        if (selectedRange.startIndex === index && selectedRange.endIndex === index) {
-             setSelectedRange(null);
-             setIsSelecting(false);
-             setDragStart(null);
-             return;
-        }
+      // Toggle off if clicking the exact same single slot
+      if (selectedRange.startIndex === index && selectedRange.endIndex === index) {
+        setSelectedRange(null);
+        setIsSelecting(false);
+        setDragStart(null);
+        return;
+      }
 
-        const minIndex = Math.min(selectedRange.startIndex, index);
-        const maxIndex = Math.max(selectedRange.endIndex, index);
+      const minIndex = Math.min(selectedRange.startIndex, index);
+      const maxIndex = Math.max(selectedRange.endIndex, index);
 
-        let valid = true;
-        for (let i = minIndex; i <= maxIndex; i++) {
-           if (getSlotBooking(roomId, SLOTS[i].hour, SLOTS[i].minute) || isSlotLocked(SLOTS[i].hour, SLOTS[i].minute)) {
-             valid = false;
-             break;
-           }
+      let valid = true;
+      for (let i = minIndex; i <= maxIndex; i++) {
+        if (getSlotBooking(roomId, SLOTS[i].hour, SLOTS[i].minute) || isSlotLocked(SLOTS[i].hour, SLOTS[i].minute)) {
+          valid = false;
+          break;
         }
-        
-        if (valid) {
-            setSelectedRange({ roomId, startIndex: minIndex, endIndex: maxIndex });
-            setIsSelecting(true);
-            setDragStart({ roomId, index: selectedRange.startIndex });
-            return;
-        }
+      }
+
+      if (valid) {
+        setSelectedRange({ roomId, startIndex: minIndex, endIndex: maxIndex });
+        setIsSelecting(true);
+        setDragStart({ roomId, index: selectedRange.startIndex });
+        return;
+      }
     }
 
     setIsSelecting(true);
@@ -138,9 +138,9 @@ export default function Home() {
     const maxIndex = Math.max(dragStart.index, index);
 
     for (let i = minIndex; i <= maxIndex; i++) {
-       if (getSlotBooking(roomId, SLOTS[i].hour, SLOTS[i].minute) || isSlotLocked(SLOTS[i].hour, SLOTS[i].minute)) {
-         return; 
-       }
+      if (getSlotBooking(roomId, SLOTS[i].hour, SLOTS[i].minute) || isSlotLocked(SLOTS[i].hour, SLOTS[i].minute)) {
+        return;
+      }
     }
 
     setSelectedRange({ roomId, startIndex: minIndex, endIndex: maxIndex });
@@ -181,21 +181,61 @@ export default function Home() {
   const timeString = `${displayHours} giờ ${displayMins === 0 ? "00" : displayMins} phút`;
 
   const handleNext = () => {
-     if (!selectedRange) {
-       toast.warning("Vui lòng chọn khung giờ trống trên lịch trước khi xác nhận đặt lịch.");
-       return;
-     }
-     
-     setBookingTitle("");
-     setParticipantsCount("");
-     setBookerName(localStorage.getItem("roombooking_lastBookerName") || "");
-     setBookingModalOpen(true);
+    if (!selectedRange) {
+      toast.warning("Vui lòng chọn khung giờ trống trên lịch trước khi xác nhận đặt lịch.");
+      return;
+    }
+
+    setBookingTitle("");
+    setParticipantsCount("");
+    setBookerName(localStorage.getItem("roombooking_lastBookerName") || "");
+    setBookingModalOpen(true);
+  };
+
+  const handleDeleteBooking = async () => {
+    if (!selectedBookingInfo) return;
+
+    const currentBookerName = localStorage.getItem("roombooking_lastBookerName") || "";
+    
+    // Check if their cached Local Storage name matches perfectly
+    let isAuthorized = false;
+
+    if (currentBookerName.trim().toLowerCase() === selectedBookingInfo.booker_name.trim().toLowerCase()) {
+        isAuthorized = true;
+    } else {
+        // If not, ask them to type the name manually to prove they own it/are authorized
+        const promptName = window.prompt(`Để bảo mật, vui lòng nhập chính xác tên người chủ trì cuộc họp:\n"${selectedBookingInfo.booker_name}"`);
+        if (promptName !== null && promptName.trim().toLowerCase() === selectedBookingInfo.booker_name.trim().toLowerCase()) {
+            isAuthorized = true;
+        } else if (promptName !== null) { // User typed something wrong
+            toast.error("Tên xác nhận không khớp! Bạn không thể huỷ lịch của người khác.");
+            return;
+        } else { // User cancelled the prompt
+            return;
+        }
+    }
+
+    if (!isAuthorized) {
+        return;
+    }
+
+    // Attempt deletion
+    const confirmed = window.confirm("Hành động này không thể hoàn tác. Bạn có chắc chắn muốn huỷ lịch này không?");
+    if (!confirmed) return;
+
+    const success = await deleteBooking(selectedBookingInfo.id);
+    if (success) {
+        toast.success("✅ Đã huỷ lịch thành công!");
+        setInfoModalOpen(false);
+    } else {
+        toast.error("Có lỗi xảy ra khi huỷ lịch. Vui lòng thử lại sau.");
+    }
   };
 
   const submitBooking = async () => {
     const room = rooms.find(r => r.id === selectedRange?.roomId);
     if (!selectedRange) return;
-    
+
     // Equivalent Zod Validation Check 
     if (!participantsCount || participantsCount <= 0) {
       toast.error("Số lượng người tham gia phải lớn hơn 0");
@@ -244,9 +284,9 @@ export default function Home() {
             <button className="p-2 hover:bg-white/10 rounded-full transition-colors opacity-0 pointer-events-none md:opacity-100 md:pointer-events-auto">
               <ChevronLeft className="w-6 h-6" />
             </button>
-            
+
             <h1 className="text-lg md:text-xl font-bold tracking-tight">HỆ THỐNG ĐẶT PHÒNG HỌP NỘI BỘ</h1>
-            
+
             <Popover>
               <PopoverTrigger className="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full transition-colors text-sm font-medium">
                 <span>{format(date, "dd/MM/yyyy")}</span>
@@ -323,12 +363,12 @@ export default function Home() {
                     // Text display logic on booked slots
                     let isFirstVisibleSlotOfBooking = false;
                     if (booking) {
-                        const slotStart = setMinutes(setHours(date, slot.hour), slot.minute).getTime();
-                        const bookingStart = parseISO(booking.start_time).getTime();
-                        // It is the first visible slot if it matches the start exactly, OR if it's the very first slot of the grid (07:00) and the booking started before it.
-                        if (slotStart === bookingStart || (index === 0 && bookingStart < slotStart)) {
-                            isFirstVisibleSlotOfBooking = true;
-                        }
+                      const slotStart = setMinutes(setHours(date, slot.hour), slot.minute).getTime();
+                      const bookingStart = parseISO(booking.start_time).getTime();
+                      // It is the first visible slot if it matches the start exactly, OR if it's the very first slot of the grid (07:00) and the booking started before it.
+                      if (slotStart === bookingStart || (index === 0 && bookingStart < slotStart)) {
+                        isFirstVisibleSlotOfBooking = true;
+                      }
                     }
 
                     const slotContent = (
@@ -342,9 +382,9 @@ export default function Home() {
                         className={cn(
                           "h-14 w-16 flex-shrink-0 border-y border-r first:border-l border-gray-200/70 transition-all box-border relative flex items-center overflow-visible",
                           isBooked ? "bg-[#f87171] border-red-400 cursor-help" :
-                          isLocked ? "bg-[#9ca3af] border-gray-400 cursor-not-allowed" :
-                          isSelected ? "bg-green-100 border-green-600 scale-[1.02] z-10 cursor-crosshair ring-1 ring-green-600 ring-inset" :
-                          "bg-white hover:bg-green-50 cursor-pointer"
+                            isLocked ? "bg-[#9ca3af] border-gray-400 cursor-not-allowed" :
+                              isSelected ? "bg-green-100 border-green-600 scale-[1.02] z-10 cursor-crosshair ring-1 ring-green-600 ring-inset" :
+                                "bg-white hover:bg-green-50 cursor-pointer"
                         )}
                         style={{
                           ...(isSelected && index > selectedRange!.startIndex ? { borderLeftWidth: 0, marginLeft: -1 } : {}),
@@ -352,9 +392,9 @@ export default function Home() {
                         }}
                       >
                         {isFirstVisibleSlotOfBooking && (
-                           <div className="absolute left-1 z-20 text-[10px] md:text-xs font-bold text-white whitespace-nowrap pointer-events-none drop-shadow-sm max-w-[200px] truncate" style={{ width: 'max-content' }}>
-                              {booking?.booker_name}
-                           </div>
+                          <div className="absolute left-1 z-20 text-[10px] md:text-xs font-bold text-white whitespace-nowrap pointer-events-none drop-shadow-sm max-w-[200px] truncate" style={{ width: 'max-content' }}>
+                            {booking?.booker_name}
+                          </div>
                         )}
                       </div>
                     );
@@ -386,14 +426,14 @@ export default function Home() {
         <div className="flex-shrink-0 z-30 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
           <div className="bg-[#f8fafc] border-t border-gray-200 px-6 py-4 flex items-center justify-between">
             <span className="font-bold text-sm text-green-900">
-               {selectedRange 
-                  ? `Tổng thời gian dự kiến: ${timeString}` 
-                  : "Vui lòng chọn khung giờ trên lịch"}
+              {selectedRange
+                ? `Tổng thời gian dự kiến: ${timeString}`
+                : "Vui lòng chọn khung giờ trên lịch"}
             </span>
-            <Button 
-               className="bg-[#eab308] hover:bg-[#d97706] text-white font-bold px-8 shadow-md"
-               onClick={handleNext}
-               disabled={!selectedRange}
+            <Button
+              className="bg-[#eab308] hover:bg-[#d97706] text-white font-bold px-8 shadow-md"
+              onClick={handleNext}
+              disabled={!selectedRange}
             >
               XÁC NHẬN ĐẶT LỊCH
             </Button>
@@ -405,18 +445,25 @@ export default function Home() {
           <DialogContent className="sm:max-w-[400px] rounded-xl border-t-4 border-t-red-500">
             <DialogHeader>
               <DialogTitle className="text-lg flex items-center gap-2 text-slate-800">
-                 <AlertCircle className="w-5 h-5 text-red-500" />
-                 Thông tin Phòng đã đặt
+                <AlertCircle className="w-5 h-5 text-red-500" />
+                Thông tin Phòng đã đặt
               </DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-3 px-1 text-sm text-slate-600">
-               <p><strong className="text-slate-800">Cuộc họp:</strong> {selectedBookingInfo?.title}</p>
-               <p><strong className="text-slate-800">Người chủ trì:</strong> {selectedBookingInfo?.booker_name}</p>
-               <p><strong className="text-slate-800 text-emerald-700">Số lượng tham gia:</strong> {selectedBookingInfo?.participants_count || 0} người</p>
-               <p><strong className="text-slate-800">Thời gian:</strong> {selectedBookingInfo && format(parseISO(selectedBookingInfo.start_time), "HH:mm")} - {selectedBookingInfo && format(parseISO(selectedBookingInfo.end_time), "HH:mm")}</p>
+              <p><strong className="text-slate-800">Cuộc họp:</strong> {selectedBookingInfo?.title}</p>
+              <p><strong className="text-slate-800">Người chủ trì:</strong> {selectedBookingInfo?.booker_name}</p>
+              <p><strong className="text-slate-800 text-emerald-700">Số lượng tham gia:</strong> {selectedBookingInfo?.participants_count || 0} người</p>
+              <p><strong className="text-slate-800">Thời gian:</strong> {selectedBookingInfo && format(parseISO(selectedBookingInfo.start_time), "HH:mm")} - {selectedBookingInfo && format(parseISO(selectedBookingInfo.end_time), "HH:mm")}</p>
             </div>
-            <DialogFooter>
-               <Button variant="outline" onClick={() => setInfoModalOpen(false)} className="w-full rounded-lg">Đóng</Button>
+            <DialogFooter className="flex lg:justify-between items-center w-full gap-2 mt-2">
+              <Button 
+                 variant="destructive" 
+                 onClick={handleDeleteBooking} 
+                 className="w-full lg:w-auto flex items-center gap-2"
+              >
+                 <Trash2 className="w-4 h-4" /> Huỷ Đặt Lịch
+              </Button>
+              <Button variant="outline" onClick={() => setInfoModalOpen(false)} className="w-full lg:w-auto">Đóng</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -428,25 +475,25 @@ export default function Home() {
               <DialogTitle className="text-xl">Đăng ký họp</DialogTitle>
             </DialogHeader>
             <div className="py-4 space-y-4">
-               <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 flex justify-center items-center text-sm">
-                  <span className="font-semibold text-amber-900 text-center">Đăng ký: {timeString}</span>
-               </div>
-               <div className="space-y-2">
-                  <Label>Tiêu đề cuộc họp</Label>
-                  <Input placeholder="Vd: Họp giao ban phòng Tech" value={bookingTitle} onChange={e => setBookingTitle(e.target.value)} required />
-               </div>
-               <div className="space-y-2">
-                  <Label>Người chủ trì</Label>
-                  <Input placeholder="Vd: Nguyễn Văn A" value={bookerName} onChange={e => setBookerName(e.target.value)} required />
-               </div>
-               <div className="space-y-2">
-                  <Label>Số lượng người tham gia</Label>
-                  <Input type="number" min="1" placeholder="Vd: 5" value={participantsCount} onChange={e => setParticipantsCount(parseInt(e.target.value) || "")} required />
-               </div>
+              <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 flex justify-center items-center text-sm">
+                <span className="font-semibold text-amber-900 text-center">Đăng ký: {timeString}</span>
+              </div>
+              <div className="space-y-2">
+                <Label>Tiêu đề cuộc họp</Label>
+                <Input placeholder="Vd: Họp giao ban phòng Tech" value={bookingTitle} onChange={e => setBookingTitle(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Người chủ trì</Label>
+                <Input placeholder="Vd: Nguyễn Văn A" value={bookerName} onChange={e => setBookerName(e.target.value)} required />
+              </div>
+              <div className="space-y-2">
+                <Label>Số lượng người tham gia</Label>
+                <Input type="number" min="1" placeholder="Vd: 5" value={participantsCount} onChange={e => setParticipantsCount(parseInt(e.target.value) || "")} required />
+              </div>
             </div>
             <DialogFooter className="gap-2">
-               <Button variant="outline" onClick={() => setBookingModalOpen(false)}>Huỷ</Button>
-               <Button className="bg-[#15803d] hover:bg-[#166534] text-white" onClick={submitBooking}>Hoàn tất đăng ký</Button>
+              <Button variant="outline" onClick={() => setBookingModalOpen(false)}>Huỷ</Button>
+              <Button className="bg-[#15803d] hover:bg-[#166534] text-white" onClick={submitBooking}>Hoàn tất đăng ký</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
