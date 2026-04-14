@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { format, parseISO, setHours, setMinutes, isBefore } from "date-fns";
 import { Calendar as CalendarIcon, ChevronLeft, AlertCircle, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -35,6 +35,7 @@ export default function Home() {
   const [isSelecting, setIsSelecting] = useState(false);
   const [dragStart, setDragStart] = useState<{ roomId: string; index: number } | null>(null);
   const [selectedRange, setSelectedRange] = useState<{ roomId: string; startIndex: number; endIndex: number } | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
 
   // 3. Modal States
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -83,7 +84,7 @@ export default function Home() {
     return isBefore(slotStart, new Date());
   };
 
-  const handleMouseDown = (roomId: string, index: number) => {
+  const handleMouseDown = (roomId: string, index: number, e?: React.PointerEvent) => {
     const slot = SLOTS[index];
     const booking = getSlotBooking(roomId, slot.hour, slot.minute);
 
@@ -129,6 +130,15 @@ export default function Home() {
     setIsSelecting(true);
     setDragStart({ roomId, index });
     setSelectedRange({ roomId, startIndex: index, endIndex: index });
+
+    // Capture pointer to ensure events are received even when finger moves fast
+    if (e?.pointerId != null) {
+      pointerIdRef.current = e.pointerId;
+      const slotElement = document.querySelector(`[data-room-id="${roomId}"][data-index="${index}"]`);
+      if (slotElement) {
+        (slotElement as HTMLElement).setPointerCapture?.(e.pointerId);
+      }
+    }
   };
 
   const handleMouseEnter = (roomId: string, index: number) => {
@@ -160,6 +170,12 @@ export default function Home() {
   const handleMouseUp = () => {
     setIsSelecting(false);
     setDragStart(null);
+    // Release any pointer capture
+    document.querySelectorAll('[data-room-id]').forEach(el => {
+      if (pointerIdRef.current != null) {
+        (el as HTMLElement).releasePointerCapture?.(pointerIdRef.current);
+      }
+    });
   };
 
   useEffect(() => {
@@ -351,7 +367,7 @@ export default function Home() {
           </div>
 
           {/* Matrix Body */}
-          <div className="min-w-max pb-32 touch-none" onPointerMove={handleTouchMove} onPointerUp={handleMouseUp}>
+          <div className="min-w-max pb-32" onPointerMove={handleTouchMove} onPointerUp={handleMouseUp}>
             {rooms.map((room) => (
               <div key={room.id} className="flex border-b border-gray-200 bg-white">
                 <div className="w-24 flex-shrink-0 sticky left-0 z-20 bg-[#f0fdf4] border-r border-gray-200 flex flex-col justify-center px-2 py-4 shadow-[2px_0_4px_rgba(0,0,0,0.03)]">
@@ -381,7 +397,7 @@ export default function Home() {
                         key={index}
                         data-room-id={room.id}
                         data-index={index}
-                        onPointerDown={() => handleMouseDown(room.id, index)}
+                        onPointerDown={(e) => handleMouseDown(room.id, index, e)}
                         onPointerEnter={() => handleMouseEnter(room.id, index)}
                         className={cn(
                           "h-14 w-16 flex-shrink-0 border-y border-r first:border-l border-gray-200/70 transition-all box-border relative flex items-center overflow-visible",
